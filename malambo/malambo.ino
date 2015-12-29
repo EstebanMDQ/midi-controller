@@ -1,8 +1,19 @@
 
+//  configurations
+
+// pins to be used as input
 int pines[] = {8, 9, 10, 11};
+
+// current state for each output
 int estados[] = {LOW, LOW, LOW, LOW};
-int controles[] = {20, 21, 22, 23}; 
+
+// output command to use for each input
+int controles[] = {20, 21, 22, 23};
+
+// helper variables to debounce each button independently
 long debounces[] = {0, 0, 0, 0};
+
+// debounce time
 long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
 
@@ -27,25 +38,21 @@ long debounceDelay = 50;    // the debounce time; increase if the output flicker
 // Third parameter is the control number number (0-119).
 // Fourth parameter is the control value (0-127).
 
+// function to send a control midi command
 void controlChange(byte channel, byte control, byte value) {
   MIDIEvent event = {0x0B, 0xB0 | channel, control, value};
   MIDIUSB.write(event);
 }
 
 void loop() {
-//  noteOn(0, 48, 64);   // Channel 0, middle C, normal velocity
-//  MIDIUSB.flush();
-//  delay(500);
-//
-//  noteOff(0, 48, 64);  // Channel 0, middle C, normal velocity
-//  MIDIUSB.flush();
-//  delay(1500);
   unsigned long t = millis();
   int btn = 0;
   int val;
+  // read each button state
   for( int i = 0; i < 4 ; i++ ){
     btn = digitalRead(pines[i]);
-    if( btn != estados[i] && debounces[i] < t) { 
+    // check if the button changed state and debounce time has passed
+    if( btn != estados[i] && debounces[i] < t) {
       estados[i] = btn;
       debounces[i] = t + debounceDelay;
       if( btn == HIGH ) {
@@ -53,10 +60,14 @@ void loop() {
       } else {
         val = 0;
       }
-      controlChange(0, controles[i], val); 
+      // send control change command
+      controlChange(0, controles[i], val);
+
+      // flash a led, just because we can
       digitalWrite(13, HIGH);
     }
   }
+  // flush midi commands
   MIDIUSB.flush();
   digitalWrite(13, LOW);
 }
@@ -67,6 +78,5 @@ void setup() {
   for( int i = 0; i < sizeof(pines) ; i++ ){
     pinMode(pines[i], INPUT);
   }
-  
-}
 
+}
