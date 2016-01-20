@@ -2,20 +2,37 @@
 //  configurations
 
 // pins to be used as input
-int pines[] = {8, 9, 10, 11};
+int pins[] = {8, 9, 11};
 
 // current state for each output
-int estados[] = {LOW, LOW, LOW, LOW};
+int pinStatus[][3] = {
+  {LOW, LOW, LOW},
+  {LOW, LOW, LOW},
+  {LOW, LOW, LOW}
+};
 
 // output command to use for each input
-int controles[] = {20, 21, 22, 23};
+int midiControls[][3] = {
+  {20, 21, 22},
+  {23, 24, 25},
+  {26, 27, 28}
+};
 
 // helper variables to debounce each button independently
-long debounces[] = {0, 0, 0, 0};
+long debounces[][3] = {
+  {0, 0, 0},
+  {0, 0, 0},
+  {0, 0, 0},
+};  
 
 // debounce time
 long debounceDelay = 50;    // the debounce time; increase if the output flickers
 
+
+// bank change related config
+int bankPin = 10;
+int currentBank = 0;
+long debounceBank = 0;
 
 // First parameter is the event type (0x09 = note on, 0x08 = note off).
 // Second parameter is note-on/note-off, combined with the channel.
@@ -48,23 +65,34 @@ void loop() {
   unsigned long t = millis();
   int btn = 0;
   int val;
+  
+  // read bank change button
+  btn = digitalRead(bankPin);
+  if( btn == HIGH && debounceBank < t) {
+    debounceBank = t + debounceDelay;
+    currentBank += 1;
+    if( currentBank > 2){
+      currentBank = 0;
+    }
+  }  
+  
   // read each button state
-  for( int i = 0; i < 4 ; i++ ){
-    btn = digitalRead(pines[i]);
+  for( int i = 0; i < 3 ; i++ ){
+    btn = digitalRead(pins[i]);
     // check if the button changed state and debounce time has passed
-    if( btn != estados[i] && debounces[i] < t) {
-      estados[i] = btn;
-      debounces[i] = t + debounceDelay;
+    if( btn != pinStatus[currentBank][i] && debounces[currentBank][i] < t) {
+      pinStatus[currentBank][i] = btn;
+      debounces[currentBank][i] = t + debounceDelay;
       if( btn == HIGH ) {
         val = 127;
       } else {
-        val = 0;
+        val = currentBank;
       }
       // send control change command
-      controlChange(0, controles[i], val);
-
+      controlChange(0, midiControls[currentBank][i], val);
+      continue;
       // flash a led, just because we can
-      digitalWrite(13, HIGH);
+//      digitalWrite(13, HIGH);
     }
   }
   // flush midi commands
@@ -75,8 +103,9 @@ void loop() {
 void setup() {
   Serial.begin(9600);
   pinMode(13, OUTPUT);
-  for( int i = 0; i < sizeof(pines) ; i++ ){
-    pinMode(pines[i], INPUT);
+  pinMode(bankPin, INPUT);
+  for( int i = 0; i < sizeof(pins) ; i++ ){
+    pinMode(pins[i], INPUT);
   }
 
 }
